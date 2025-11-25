@@ -10,8 +10,30 @@ Ultrapaper is a GUI for [hyprpaper](https://wiki.hypr.land/Hypr-Ecosystem/hyprpa
 - Auto update hyprpaper config file
 
 ## Installation
+
+### Arch Linux
+#### AUR Package (Recommended)
+Install from the AUR using your preferred AUR helper:
+**Using yay:**
+```bash
+yay -S ultrapaper
+```
+
+**Using paru:**
+```bash
+paru -S ultrapaper
+```
+
+**Manual AUR installation:**
+```bash
+git clone https://aur.archlinux.org/ultrapaper.git
+cd ultrapaper
+makepkg -si
+```
+
+### Prebuilt Binary
 Ultrapaper is a GTK4 GUI for hyprpaper. You must be running Hyprland with hyprpaper enabled, and have `hyprctl` in your PATH.
-### Dependencies
+#### Dependencies
 You need Go (≥1.23), GTK4 development files, GObject Introspection, and common graphics libs.
 Debian/Ubuntu:
 sudo apt update
@@ -29,13 +51,17 @@ gtk4 gobject-introspection glib cairo libsoup pango gdk-pixbuf pkg-config
 Verify:
 pkg-config --cflags gtk4
 pkg-config --cflags gobject-introspection-1.0
-### Prebuilt Binary
+
+#### Download the binary
 1. Download the latest release from the Releases page.
 2. Make it executable and put it somewhere in your PATH:
+```bash
 curl -L -o ultrapaper https://github.com/AhmedAlYousif/ultrapaper/releases/download/vX.Y.Z/ultrapaper-linux-x86_64_vX.Y.Z
 chmod +x ultrapaper
 mv ultrapaper ~/.local/bin/
+```
 Replace `vX.Y.Z` with the actual version.
+
 ### Build From Source
 git clone https://github.com/AhmedAlYousif/ultrapaper.git
 cd ultrapaper
@@ -57,5 +83,6 @@ Nothing happens on wallpaper change:
 Check `hyprctl monitors` output; ensure hyprpaper is running.
 Segfault or display issues:
 Run under Wayland/Hyprland (not X11). Confirm matching library versions and that `$WAYLAND_DISPLAY` is set.
+
 ### Notes
 - Wayland only (Hyprland).
