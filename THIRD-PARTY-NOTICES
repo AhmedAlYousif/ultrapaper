@@ -1,0 +1,2 @@
+This software (ultrapaper) is MIT licensed (see LICENSE). It uses GTK 4 (LGPL-2.1-or-later). Source: https://gitlab.gnome.org/GNOME/gtk. We do not distribute modified GTK.
+Go dependencies: diamondburned/gotk4 (MIT); KarpelesLab/weak (MIT); go4.org/unsafe/assume-no-moving-gc (BSD-3-Clause); golang.org/x/sync (BSD-3-Clause)
