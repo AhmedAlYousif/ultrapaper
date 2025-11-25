@@ -35,22 +35,30 @@ makepkg -si
 Ultrapaper is a GTK4 GUI for hyprpaper. You must be running Hyprland with hyprpaper enabled, and have `hyprctl` in your PATH.
 #### Dependencies
 You need Go (≥1.23), GTK4 development files, GObject Introspection, and common graphics libs.
-Debian/Ubuntu:
+##### Debian/Ubuntu:
+```bash
 sudo apt update
 sudo apt install -y build-essential pkg-config \
-  libgtk-4-dev gobject-introspection libgirepository1.0-dev \
-  libglib2.0-dev libcairo2-dev libsoup-3.0-dev \
-  libpango1.0-dev libgdk-pixbuf-2.0-dev
-Arch:
+    libgtk-4-dev gobject-introspection libgirepository1.0-dev \
+    libglib2.0-dev libcairo2-dev libsoup-3.0-dev \
+    libpango1.0-dev libgdk-pixbuf-2.0-dev
+```
+##### Arch:
+```bash
 sudo pacman -S go gtk4 gobject-introspection glib2 cairo libsoup pango gdk-pixbuf
 Fedora:
 sudo dnf install golang gtk4-devel gobject-introspection-devel \
-  glib2-devel cairo-devel libsoup3-devel pango-devel gdk-pixbuf2-devel
-Nix (flake inputs example):
+    glib2-devel cairo-devel libsoup3-devel pango-devel gdk-pixbuf2-devel
+```
+##### Nix (flake inputs example):
+```bash
 gtk4 gobject-introspection glib cairo libsoup pango gdk-pixbuf pkg-config
+```
 Verify:
+```bash
 pkg-config --cflags gtk4
 pkg-config --cflags gobject-introspection-1.0
+```
 
 #### Download the binary
 1. Download the latest release from the Releases page.
@@ -63,17 +71,25 @@ mv ultrapaper ~/.local/bin/
 Replace `vX.Y.Z` with the actual version.
 
 ### Build From Source
+```bash
 git clone https://github.com/AhmedAlYousif/ultrapaper.git
 cd ultrapaper
 CGO_ENABLED=1 go build -o ultrapaper
-(Optional smaller binary):
+# (Optional smaller binary):
 CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o ultrapaper
+```
 Run:
+```bash
 ./ultrapaper
+```
+
+
 ### Usage
 - Ensure hyprpaper is configured/started in your Hyprland config.
 - Launch Ultrapaper.
 - Assign images per monitor; Ultrapaper writes the hyprpaper config automatically.
+
+
 ### Troubleshooting
 Build fails with “Package gobject-introspection-1.0 not found”:
 Install `gobject-introspection` and `libgirepository1.0-dev` (Debian/Ubuntu) or matching distro equivalents.
