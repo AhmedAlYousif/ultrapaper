@@ -1,0 +1,50 @@
+.image-browser-root {
+	background: @theme_bg_color;
+	border-radius: 10px;
+	padding: 8px;
+}
+
+.image-browser-header {
+	padding: 6px 10px;
+	background: shade(@theme_bg_color, 0.9);
+	border-radius: 8px;
+}
+
+.image-browser-dir-label {
+	font-weight: 600;
+	color: @theme_fg_color;
+}
+
+.image-browser-browse {
+	font-weight: 500;
+	padding: 4px 14px;
+	border-radius: 6px;
+}
+
+.image-browser-browse:hover {
+	background: @theme_selected_bg_color;
+	color: @theme_selected_fg_color;
+}
+
+.image-browser-scroll {
+	background: transparent;
+}
+
+.image-browser-grid {
+	margin-top: 8px;
+}
+
+.image-frame {
+	background: #000;
+	border: 1px solid alpha(@theme_selected_bg_color, 0.6);
+	border-radius: 8px;
+}
+
+.image-frame:hover {
+	border-color: @theme_selected_bg_color;
+	box-shadow: 0 2px 6px alpha(#000, 0.35);
+}
+
+.image-thumb {
+	border-radius: 8px;
+}

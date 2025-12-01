@@ -1,2 +1,17 @@
-This software (ultrapaper) is MIT licensed (see LICENSE). It uses GTK 4 (LGPL-2.1-or-later). Source: https://gitlab.gnome.org/GNOME/gtk. We do not distribute modified GTK.
-Go dependencies: diamondburned/gotk4 (MIT); KarpelesLab/weak (MIT); go4.org/unsafe/assume-no-moving-gc (BSD-3-Clause); golang.org/x/sync (BSD-3-Clause)
+This software (ultrapaper) is MIT licensed (see LICENSE). It uses the following third-party libraries:
+
+GTK4 (gtk4 crate v0.10.2) - MIT licensed Rust bindings to GTK4
+- Source: https://crates.io/crates/gtk4
+- GTK4 C library itself: LGPL-2.1-or-later
+- GTK4 C library source: https://gitlab.gnome.org/GNOME/gtk
+- We do not distribute modified GTK4 C library
+
+GLib (glib crate v0.21.4) - MIT licensed Rust bindings to GLib
+- Source: https://crates.io/crates/glib
+- GLib C library itself: LGPL-2.1-or-later
+
+GIO (gio crate v0.21.4) - MIT licensed Rust bindings to GIO
+- Source: https://crates.io/crates/gio
+- GIO C library itself: LGPL-2.1-or-later
+
+All Rust dependencies and their transitive dependencies are MIT or MIT OR Apache-2.0 licensed, with some BSD-3-Clause and Apache-2.0 components. See Cargo.lock for complete dependency information.

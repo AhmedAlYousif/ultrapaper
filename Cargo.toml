@@ -1,0 +1,9 @@
+[package]
+name = "ultrapaper"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+gio = "0.21.4"
+glib = "0.21.4"
+gtk = { version = "0.10.2", package = "gtk4", features = ["v4_20"] }
