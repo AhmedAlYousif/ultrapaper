@@ -21,6 +21,10 @@ jobs:
       image: ghcr.io/gtk-rs/gtk4-rs/gtk4:latest
     steps:
       - uses: actions/checkout@v5
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.91.1
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - uses: actions/cache@v4
         with:
@@ -30,6 +34,11 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+
+      
+          
+      - name: Reload environment
+        run: source $HOME/.cargo/env
 
       - name: Set version
         id: set_version
