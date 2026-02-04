@@ -3,7 +3,7 @@ use std::process::Command;
 use crate::{
     hypr::hyprpaper::WallpaperEntry,
     state::{
-        add_wallpaper, get_selected_monitor, has_more_than_one_wallpaper, has_more_wallpapers_than_monitors, remove_wallpaper_of_monitor, save_config, set_preloads_from_wallpapers, set_wallpapers
+        add_wallpaper, get_selected_monitor, has_more_than_one_wallpaper, has_more_wallpapers_than_monitors, remove_wallpaper_of_monitor, save_config, set_wallpapers
     },
 };
 
@@ -24,8 +24,6 @@ pub fn set_wallpaper(path: String) {
     if has_more_wallpapers_than_monitors() {
         remove_wallpaper_of_monitor("".to_owned());
     }
-
-    set_preloads_from_wallpapers();
 
     save_config();
 

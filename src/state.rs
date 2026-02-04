@@ -35,25 +35,6 @@ pub fn remove_wallpaper_of_monitor(monitor: String) {
         .retain(|entry| !entry.monitor.eq(&monitor));
 }
 
-// pub fn set_preloads(preloads: Vec<String>) {
-//     let mut state = get_app_state().write().unwrap();
-//     state.config.as_mut().unwrap().preloads = preloads;
-// }
-
-pub fn set_preloads_from_wallpapers() {
-    let mut state = get_app_state().write().unwrap();
-    state.config.as_mut().unwrap().preloads = vec![];
-    let wallpapers = state.config.as_ref().unwrap().wallpapers.clone();
-    for wallpaper in wallpapers {
-        state
-            .config
-            .as_mut()
-            .unwrap()
-            .preloads
-            .append(&mut vec![wallpaper.path.clone()]);
-    }
-}
-
 pub fn add_wallpaper(entry: WallpaperEntry) {
     let mut state = get_app_state().write().unwrap();
     state

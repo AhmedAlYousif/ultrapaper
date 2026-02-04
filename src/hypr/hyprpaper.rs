@@ -21,7 +21,6 @@ impl WallpaperEntry {
 }
 
 pub struct HyprpaperConfig {
-    pub preloads: Vec<String>,
     pub wallpapers: Vec<WallpaperEntry>,
 
     config_path: PathBuf,
@@ -33,45 +32,50 @@ impl HyprpaperConfig {
         let reader = BufReader::new(file);
 
         let mut cfg = HyprpaperConfig {
-            preloads: Vec::new(),
             wallpapers: Vec::new(),
             config_path: path,
         };
 
-        for line in reader.lines() {
-            let line = line?;
-            let line = line.trim();
-
-            // Skip empty lines and comments
-            if line.is_empty() || line.starts_with('#') {
+        let mut lines_iter = reader.lines();
+        let mut inside_block = false;
+        let mut current_monitor: Option<String> = None;
+        let mut current_path: Option<String> = None;
+        while let Some(line_result) = lines_iter.next() {
+            let line = line_result?;
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
                 continue;
             }
-
-            // Split on first '=' only
-            let parts: Vec<&str> = line.splitn(2, '=').collect();
-            if parts.len() != 2 {
+            if trimmed.starts_with("wallpaper") && trimmed.contains('{') {
+                inside_block = true;
+                current_monitor = None;
+                current_path = None;
                 continue;
             }
-
-            let key = parts[0].trim();
-            let val = parts[1].trim();
-
-            match key {
-                "preload" => {
-                    if !val.is_empty() {
-                        cfg.preloads.push(val.to_string());
+            if inside_block {
+                if trimmed.contains('}') {
+                    if let (Some(monitor), Some(path)) =
+                        (current_monitor.take(), current_path.take())
+                    {
+                        cfg.wallpapers.push(WallpaperEntry { monitor, path });
+                    }
+                    inside_block = false;
+                    continue;
+                }
+                let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
+                if parts.len() == 2 {
+                    let key = parts[0].trim();
+                    let value = parts[1].trim();
+                    match key {
+                        "monitor" => {
+                            current_monitor = Some(value.to_string());
+                        }
+                        "path" => {
+                            current_path = Some(value.to_string());
+                        }
+                        _ => {}
                     }
                 }
-                "wallpaper" => {
-                    let wp: Vec<&str> = val.splitn(2, ',').collect();
-                    if wp.len() == 2 {
-                        cfg.wallpapers.push(WallpaperEntry {
-                            monitor: wp[0].trim().to_string(),
-                            path: wp[1].trim().to_string(),
-                        });
-                    }
-                }
-                _ => {}
             }
         }
 
@@ -110,11 +114,15 @@ impl HyprpaperConfig {
 
 impl Display for HyprpaperConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for preload in &self.preloads {
-            writeln!(f, "preload = {}", preload)?;
-        }
+        // for preload in &self.preloads {
+        //     writeln!(f, "preload = {}", preload)?;
+        // }
         for wallpaper in &self.wallpapers {
-            writeln!(f, "wallpaper = {},{}", wallpaper.monitor, wallpaper.path)?;
+            writeln!(
+                f,
+                "wallpaper {{\n\tmonitor = {}\n\tpath = {}\n}}",
+                wallpaper.monitor, wallpaper.path
+            )?;
         }
         Ok(())
     }
