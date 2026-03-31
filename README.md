@@ -46,10 +46,12 @@ sudo apt install -y build-essential pkg-config \
 ##### Arch:
 ```bash
 sudo pacman -S go gtk4 gobject-introspection glib2 cairo libsoup pango gdk-pixbuf
-Fedora:
+```
+##### Fedora:
+´´´bash
 sudo dnf install golang gtk4-devel gobject-introspection-devel \
     glib2-devel cairo-devel libsoup3-devel pango-devel gdk-pixbuf2-devel
-```
+´´´
 ##### Nix (flake inputs example):
 ```bash
 gtk4 gobject-introspection glib cairo libsoup pango gdk-pixbuf pkg-config
