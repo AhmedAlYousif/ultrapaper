@@ -7,6 +7,27 @@ pub fn restart_hyprpaper() {
         .output();
 }
 
+pub fn preload_wallpaper(path: &str) {
+    let _ = Command::new("sh")
+        .arg("-c")
+        .arg(format!("hyprctl hyprpaper preload {}", path))
+        .output();
+}
+
+pub fn apply_wallpaper(monitor: &str, path: &str) {
+    let _ = Command::new("sh")
+        .arg("-c")
+        .arg(format!("hyprctl hyprpaper wallpaper {},{}", monitor, path))
+        .output();
+}
+
+pub fn unload_unused() {
+    let _ = Command::new("sh")
+        .arg("-c")
+        .arg("hyprctl hyprpaper unload unused")
+        .output();
+}
+
 pub fn get_monitors() -> Vec<String> {
     let mut result = Vec::new();
 

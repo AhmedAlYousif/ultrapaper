@@ -115,13 +115,6 @@ impl HyprpaperConfig {
         })
     }
 
-    pub fn sources(&self) -> impl Iterator<Item = &String> {
-        self.entries.iter().filter_map(|e| match e {
-            ConfigEntry::Source(s) => Some(s),
-            _ => None,
-        })
-    }
-
     pub fn splash(&self) -> bool {
         self.entries
             .iter()

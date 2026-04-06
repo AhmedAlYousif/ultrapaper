@@ -1,11 +1,11 @@
 use std::cell::RefCell;
-use std::process::Command;
 use std::rc::Rc;
 
 use gio::glib::clone;
 use gtk::prelude::*;
 use gtk::{AlertDialog, Align, ApplicationWindow, Box, Button, Label, Orientation, ToggleButton};
 
+use crate::hypr::hyprctl::{apply_wallpaper, preload_wallpaper, restart_hyprpaper, unload_unused};
 use crate::hypr::hyprpaper::ConfigEntry;
 use crate::state::{
     get_monitors, get_selected_monitor, get_wallpaper_for_monitor, has_empty_monitor_name,
@@ -199,21 +199,9 @@ impl MainWindow {
                 save_config();
 
                 if path_only_changed && !entry.path.is_empty() {
-                    let _ = Command::new("sh")
-                        .arg("-c")
-                        .arg(format!("hyprctl hyprpaper preload {}", entry.path))
-                        .output();
-                    let _ = Command::new("sh")
-                        .arg("-c")
-                        .arg(format!(
-                            "hyprctl hyprpaper wallpaper {},{}",
-                            monitor, entry.path
-                        ))
-                        .output();
-                    let _ = Command::new("sh")
-                        .arg("-c")
-                        .arg("hyprctl hyprpaper unload unused")
-                        .output();
+                    preload_wallpaper(&entry.path);
+                    apply_wallpaper(&monitor, &entry.path);
+                    unload_unused();
                 } else {
                     let dialog = AlertDialog::builder()
                         .message("Restart required")
@@ -225,10 +213,7 @@ impl MainWindow {
                     dialog.choose(Some(&window), gio::Cancellable::NONE, move |res| {
                         if let Ok(idx) = res {
                             if idx == 1 {
-                                let _ = Command::new("sh")
-                                    .arg("-c")
-                                    .arg("pkill hyprpaper && hyprctl dispatch exec hyprpaper")
-                                    .output();
+                                restart_hyprpaper();
                             }
                         }
                     });

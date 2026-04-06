@@ -24,34 +24,6 @@ pub fn set_config(config: HyprpaperConfig) {
     state.config = Some(config);
 }
 
-pub fn set_wallpapers(wallpapers: Vec<WallpaperEntry>) {
-    let mut state = get_app_state().write().unwrap();
-    let cfg = state.config.as_mut().unwrap();
-    cfg.entries
-        .retain(|e| !matches!(e, ConfigEntry::Wallpaper(_)));
-    for w in wallpapers {
-        cfg.entries.push(ConfigEntry::Wallpaper(w));
-    }
-}
-
-pub fn remove_wallpaper_of_monitor(monitor: String) {
-    let mut state = get_app_state().write().unwrap();
-    state.config.as_mut().unwrap().entries.retain(|e| match e {
-        ConfigEntry::Wallpaper(w) => !w.monitor.eq(&monitor),
-        _ => true,
-    });
-}
-
-pub fn add_wallpaper(entry: WallpaperEntry) {
-    let mut state = get_app_state().write().unwrap();
-    state
-        .config
-        .as_mut()
-        .unwrap()
-        .entries
-        .push(ConfigEntry::Wallpaper(entry));
-}
-
 pub fn get_wallpaper_for_monitor(monitor: &str) -> Option<WallpaperEntry> {
     let state = get_app_state().read().unwrap();
     state
@@ -113,36 +85,9 @@ pub fn has_more_than_one_monitors() -> bool {
     state.monitors.len() > 1
 }
 
-pub fn has_more_than_one_wallpaper() -> bool {
-    let state = get_app_state().read().unwrap();
-    state.config.as_ref().unwrap().wallpapers().count() > 1
-}
-
-pub fn has_more_wallpapers_than_monitors() -> bool {
-    let state = get_app_state().read().unwrap();
-    state.config.as_ref().unwrap().wallpapers().count() > state.monitors.len()
-}
-
 pub fn has_wallpapers() -> bool {
     let state = get_app_state().read().unwrap();
     state.config.as_ref().unwrap().wallpapers().next().is_some()
-}
-
-pub fn get_first_wallpaper_path() -> String {
-    let state = get_app_state().read().unwrap();
-    Path::new(
-        &state
-            .config
-            .as_ref()
-            .unwrap()
-            .wallpapers()
-            .next()
-            .unwrap()
-            .path,
-    )
-    .parent()
-    .map(|p| p.to_string_lossy().to_string())
-    .unwrap_or_else(|| "/".to_string())
 }
 
 pub fn has_empty_monitor_name() -> bool {
