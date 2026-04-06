@@ -1,51 +1,9 @@
 use std::process::Command;
 
-use crate::{
-    hypr::hyprpaper::WallpaperEntry,
-    state::{
-        add_wallpaper, get_selected_monitor, has_more_than_one_wallpaper, has_more_wallpapers_than_monitors, remove_wallpaper_of_monitor, save_config, set_wallpapers
-    },
-};
-
-pub fn set_wallpaper(path: String) {
-    let had_more_than_one_wallpaper = has_more_than_one_wallpaper();
-    let monitor = get_selected_monitor();
-
-    if monitor.is_empty() {
-        set_wallpapers(vec![]);
-    } else {
-        remove_wallpaper_of_monitor(monitor.clone());
-    }
-
-    let entry = WallpaperEntry::new(monitor.clone(), path.clone());
-    add_wallpaper(entry);
-
-
-    if has_more_wallpapers_than_monitors() {
-        remove_wallpaper_of_monitor("".to_owned());
-    }
-
-    save_config();
-
-    if monitor.is_empty() && had_more_than_one_wallpaper {
-        let _ = Command::new("sh").arg("-c").arg("pkill hyprpaper").output();
-        let _ = Command::new("sh")
-            .arg("-c")
-            .arg("hyprctl dispatch exec hyprpaper")
-            .output();
-    } else {
-        let _ = Command::new("sh")
-            .arg("-c")
-            .arg(format!("hyprctl hyprpaper preload {}", &path))
-            .output();
-        let _ = Command::new("sh")
-            .arg("-c")
-            .arg(format!("hyprctl hyprpaper wallpaper {},{}", monitor, path))
-            .output();
-    }
+pub fn restart_hyprpaper() {
     let _ = Command::new("sh")
         .arg("-c")
-        .arg("hyprctl hyprpaper unload unused")
+        .arg("pkill hyprpaper && hyprctl dispatch exec hyprpaper")
         .output();
 }
 

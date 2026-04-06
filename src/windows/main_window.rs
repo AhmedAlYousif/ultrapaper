@@ -1,15 +1,20 @@
-use std::fs;
+use std::cell::RefCell;
+use std::process::Command;
+use std::rc::Rc;
 
-use gio::Cancellable;
 use gio::glib::clone;
-use gtk::{ApplicationWindow, Box, Button, FileDialog, Label, Orientation, StringList};
-use gtk::{ToggleButton, prelude::*};
+use gtk::prelude::*;
+use gtk::{AlertDialog, Align, ApplicationWindow, Box, Button, Label, Orientation, ToggleButton};
 
-use crate::hypr::hyprctl::set_wallpaper;
+use crate::hypr::hyprpaper::ConfigEntry;
 use crate::state::{
-    get_first_wallpaper_path, get_monitors, has_empty_monitor_name, has_monitor, has_more_than_one_monitors, has_wallpapers, set_selected_monitor
+    get_monitors, get_selected_monitor, get_wallpaper_for_monitor, has_empty_monitor_name,
+    has_monitor, has_more_than_one_monitors, has_wallpapers, save_config, set_global_entry,
+    set_selected_monitor, update_wallpaper_for_monitor,
 };
 use crate::widgets::images_grid_view::ImagesGridView;
+use crate::widgets::settings_panel::SettingsPanel;
+use crate::widgets::wallpaper_options_panel::WallpaperOptionsPanel;
 
 pub struct MainWindow {
     pub widget: Box,
@@ -17,190 +22,265 @@ pub struct MainWindow {
 
 impl MainWindow {
     pub fn new(window: &ApplicationWindow) -> Self {
-        let images_grid_view = ImagesGridView::new(|path: &str| {
-            set_wallpaper(path.to_owned());
-        });
-
-        let main_box = Box::builder()
+        let root = Box::builder()
+            .orientation(Orientation::Vertical)
+            .spacing(12)
             .margin_top(12)
             .margin_bottom(12)
-            .margin_top(12)
+            .margin_start(12)
             .margin_end(12)
-            .orientation(Orientation::Vertical)
             .build();
-        main_box.add_css_class("image-browser-root");
+        root.add_css_class("image-browser-root");
 
-        let header_box = Box::builder()
-            .orientation(Orientation::Horizontal)
-            .spacing(5)
-            .build();
-        header_box.add_css_class("image-browser-header");
+        let current_path: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
+
+        let options_panel = Rc::new(WallpaperOptionsPanel::new(window));
+        let settings_panel = SettingsPanel::new();
+
+        let images_grid_view = Rc::new({
+            let options_panel = options_panel.clone();
+            let current_path = current_path.clone();
+            ImagesGridView::new(move |path: &str| {
+                if !options_panel.is_dir_mode() {
+                    *current_path.borrow_mut() = path.to_string();
+                }
+            })
+        });
 
         if has_more_than_one_monitors() {
             let monitors_box = Box::builder()
                 .orientation(Orientation::Horizontal)
                 .spacing(5)
                 .build();
-            monitors_box.append(&Label::builder().label("Monitors: ").build());
-            let all_monitors_toggle_button = ToggleButton::builder()
-                .label("All")
-                .active(has_empty_monitor_name())
-                .build();
-            all_monitors_toggle_button.connect_toggled(|tg| {
-                if tg.is_active() {
-                    set_selected_monitor("".to_string());
-                }
-            });
-            monitors_box.append(&all_monitors_toggle_button);
+            monitors_box.add_css_class("image-browser-header");
+            monitors_box.append(&Label::builder().label("Monitor:").build());
 
-            let mut had_selected_a_monitor = false;
-            let monitors_clone = get_monitors();
-            for monitor in monitors_clone {
-                let toggle_button = ToggleButton::builder()
-                    .label(&monitor)
-                    .group(&all_monitors_toggle_button)
-                    .build();
-                if !had_selected_a_monitor && has_monitor(monitor.clone()) {
-                    toggle_button.set_active(true);
-                    had_selected_a_monitor = false;
-                    set_selected_monitor(monitor.clone());
-                }
-                toggle_button.connect_toggled(move |tg| {
+            let all_toggle = ToggleButton::builder().label("All").active(false).build();
+
+            {
+                let options_panel = options_panel.clone();
+                let current_path = current_path.clone();
+                let images_grid_view = images_grid_view.clone();
+                all_toggle.connect_toggled(clone!(move |tg| {
                     if tg.is_active() {
-                        set_selected_monitor(monitor.clone());
+                        set_selected_monitor("".to_string());
+                        let entry = get_wallpaper_for_monitor("");
+                        options_panel.load(entry.as_ref());
+                        let path = entry
+                            .as_ref()
+                            .filter(|e| {
+                                !e.path.is_empty() && !std::path::Path::new(&e.path).is_dir()
+                            })
+                            .map(|e| e.path.clone())
+                            .unwrap_or_default();
+                        *current_path.borrow_mut() = path.clone();
+                        let dir = options_panel.get_dir();
+                        if !dir.is_empty() {
+                            *images_grid_view.selected_path.borrow_mut() = path;
+                            load_images_into_grid_raw(&dir, &images_grid_view.images_path_list);
+                        }
+                    }
+                }));
+            }
+            monitors_box.append(&all_toggle);
+
+            let mut active_toggle: Option<ToggleButton> = None;
+
+            for monitor in get_monitors() {
+                let toggle = ToggleButton::builder()
+                    .label(&monitor)
+                    .group(&all_toggle)
+                    .active(false)
+                    .build();
+                let options_panel = options_panel.clone();
+                let monitor_clone = monitor.clone();
+                let current_path = current_path.clone();
+                let images_grid_view = images_grid_view.clone();
+                toggle.connect_toggled(move |tg| {
+                    if tg.is_active() {
+                        set_selected_monitor(monitor_clone.clone());
+                        let entry = get_wallpaper_for_monitor(&monitor_clone);
+                        options_panel.load(entry.as_ref());
+                        let path = entry
+                            .as_ref()
+                            .filter(|e| {
+                                !e.path.is_empty() && !std::path::Path::new(&e.path).is_dir()
+                            })
+                            .map(|e| e.path.clone())
+                            .unwrap_or_default();
+                        *current_path.borrow_mut() = path.clone();
+                        let dir = options_panel.get_dir();
+                        if !dir.is_empty() {
+                            *images_grid_view.selected_path.borrow_mut() = path;
+                            load_images_into_grid_raw(&dir, &images_grid_view.images_path_list);
+                        }
                     }
                 });
-                monitors_box.append(&toggle_button);
+                monitors_box.append(&toggle);
+                if !has_empty_monitor_name() && has_monitor(monitor.clone()) {
+                    active_toggle = Some(toggle);
+                }
             }
-            header_box.append(&monitors_box);
-            header_box.append(
-                &Box::builder()
-                    .hexpand(true)
-                    .orientation(Orientation::Horizontal)
-                    .build(),
-            );
+
+            if let Some(t) = active_toggle {
+                t.set_active(true);
+            } else {
+                all_toggle.set_active(true);
+            }
+
+            root.append(&monitors_box);
+        } else {
+            let initial_monitor = get_selected_monitor();
+            let initial_entry = get_wallpaper_for_monitor(&initial_monitor);
+            options_panel.load(initial_entry.as_ref());
+            let initial_path = initial_entry
+                .as_ref()
+                .filter(|e| !e.path.is_empty() && !std::path::Path::new(&e.path).is_dir())
+                .map(|e| e.path.clone())
+                .unwrap_or_default();
+            *current_path.borrow_mut() = initial_path.clone();
+            if has_wallpapers() {
+                let dir = options_panel.get_dir();
+                if !dir.is_empty() {
+                    *images_grid_view.selected_path.borrow_mut() = initial_path.clone();
+                    load_images_into_grid(&dir, &images_grid_view);
+                }
+            }
         }
 
-        let dir_label = Label::builder()
-            .halign(gtk::Align::Start)
-            .label("Select a directory")
-            .build();
-        dir_label.add_css_class("image-browser-dir-label");
-        header_box.append(&dir_label);
+        root.append(&options_panel.widget);
+        root.append(&images_grid_view.widget);
+        root.append(&settings_panel.widget);
 
-        let browse_button = Button::builder()
-            .label("Browse")
-            .halign(gtk::Align::End)
-            .build();
-        browse_button.add_css_class("image_browser-browse");
-        browse_button.connect_clicked(clone!(
+        {
+            let images_grid_view = images_grid_view.clone();
+            options_panel.connect_dir_changed(move |new_dir| {
+                images_grid_view.set_selected("");
+                load_images_into_grid_raw(new_dir, &images_grid_view.images_path_list);
+            });
+        }
+
+        let apply_btn = Button::builder().label("Apply").halign(Align::End).build();
+        apply_btn.add_css_class("apply-btn");
+
+        apply_btn.connect_clicked(clone!(
             #[weak]
             window,
             #[strong]
-            dir_label,
-            #[strong(rename_to = images_path_list)]
-            images_grid_view.images_path_list,
+            options_panel,
+            #[strong]
+            current_path,
             move |_| {
-                let dialog = FileDialog::builder().title("Select Directory").build();
-                dialog.select_folder(
-                    Some(&window),
-                    Some(&Cancellable::new()),
-                    clone!(
-                        #[strong]
-                        dir_label,
-                        #[strong]
-                        images_path_list,
-                        move |res| {
-                            match res {
-                                Ok(file) => {
-                                    if let Some(path) = file.path() {
-                                        if let Some(path_str) = path.to_str() {
-                                            on_dir_selected(path_str, dir_label, images_path_list);
-                                        } else {
-                                            eprintln!("Failed to convert path to string");
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    eprintln!("Dialog cancelled or error: {}", e);
-                                }
+                let monitor = get_selected_monitor();
+                let current = current_path.borrow().clone();
+                let entry = options_panel.build_entry(&monitor, &current);
+                let is_dir_mode = options_panel.is_dir_mode();
+
+                let old_entry = get_wallpaper_for_monitor(&monitor);
+                let path_only_changed = old_entry.as_ref().map_or(false, |old| {
+                    !is_dir_mode
+                        && old.path != entry.path
+                        && old.timeout.is_none()
+                        && old.order.is_none()
+                        && old.recursive.is_none()
+                });
+
+                update_wallpaper_for_monitor(&monitor, entry.clone());
+
+                set_global_entry(ConfigEntry::Splash(settings_panel.get_splash()));
+                set_global_entry(ConfigEntry::SplashOffset(
+                    settings_panel.get_splash_offset(),
+                ));
+                set_global_entry(ConfigEntry::SplashOpacity(
+                    settings_panel.get_splash_opacity(),
+                ));
+                set_global_entry(ConfigEntry::Ipc(settings_panel.get_ipc()));
+
+                save_config();
+
+                if path_only_changed && !entry.path.is_empty() {
+                    let _ = Command::new("sh")
+                        .arg("-c")
+                        .arg(format!("hyprctl hyprpaper preload {}", entry.path))
+                        .output();
+                    let _ = Command::new("sh")
+                        .arg("-c")
+                        .arg(format!(
+                            "hyprctl hyprpaper wallpaper {},{}",
+                            monitor, entry.path
+                        ))
+                        .output();
+                    let _ = Command::new("sh")
+                        .arg("-c")
+                        .arg("hyprctl hyprpaper unload unused")
+                        .output();
+                } else {
+                    let dialog = AlertDialog::builder()
+                        .message("Restart required")
+                        .detail("Hyprpaper needs to restart to apply these changes. Restart now?")
+                        .buttons(["Cancel", "Restart"])
+                        .default_button(1)
+                        .cancel_button(0)
+                        .build();
+                    dialog.choose(Some(&window), gio::Cancellable::NONE, move |res| {
+                        if let Ok(idx) = res {
+                            if idx == 1 {
+                                let _ = Command::new("sh")
+                                    .arg("-c")
+                                    .arg("pkill hyprpaper && hyprctl dispatch exec hyprpaper")
+                                    .output();
                             }
                         }
-                    ),
-                );
-            },
+                    });
+                }
+            }
         ));
-        header_box.append(&browse_button);
 
-        main_box.append(&header_box);
+        root.append(&apply_btn);
 
-        main_box.append(&images_grid_view.widget);
-
-        if has_wallpapers() {
-            on_dir_selected(get_first_wallpaper_path().as_str(), dir_label, images_grid_view.images_path_list);
-        }
-
-        Self { widget: main_box }
+        Self { widget: root }
     }
 }
 
-fn on_dir_selected(path: &str, dir_label: Label, images_path_list: StringList) {
-    dir_label.set_label(path);
+fn load_images_into_grid(dir: &str, grid: &ImagesGridView) {
+    load_images_into_grid_raw(dir, &grid.images_path_list);
+}
 
-    images_path_list.splice(0, images_path_list.n_items(), &[] as &[&str]);
-
-    for image in read_image_entries(path) {
-        images_path_list.append(image.as_str());
+fn load_images_into_grid_raw(dir: &str, list: &gtk::StringList) {
+    list.splice(0, list.n_items(), &[] as &[&str]);
+    let entries = read_image_entries(dir);
+    for path in entries {
+        list.append(path.as_str());
     }
 }
 
 fn read_image_entries(path: &str) -> Vec<String> {
-    let entries = match fs::read_dir(path) {
-        Ok(entries) => entries,
+    let entries = match std::fs::read_dir(path) {
+        Ok(e) => e,
         Err(_) => return Vec::new(),
     };
-
     let mut files = Vec::new();
-
-    for entry in entries {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(_) => continue,
-        };
-
-        if entry.file_type().map_or(true, |ft| ft.is_dir()) {
-            continue;
-        }
-
+    for entry in entries.flatten() {
         let metadata = match entry.metadata() {
-            Ok(metadata) => metadata,
+            Ok(m) => m,
             Err(_) => continue,
         };
-
         if !metadata.is_file() {
             continue;
         }
-
         let file_name = entry.file_name();
-        let file_name_str = match file_name.to_str() {
-            Some(name) => name,
+        let name = match file_name.to_str() {
+            Some(n) => n,
             None => continue,
         };
-
-        let supported_extensions = ["jpg", "jpeg", "png", "bmp", "webp"];
-        let is_supported = file_name_str
+        let supported = ["jpg", "jpeg", "png", "bmp", "webp"];
+        let ok = name
             .rfind('.')
-            .map(|dot_pos| {
-                let extension = &file_name_str[dot_pos + 1..];
-                supported_extensions.contains(&extension.to_lowercase().as_str())
-            })
+            .map(|i| supported.contains(&name[i + 1..].to_lowercase().as_str()))
             .unwrap_or(false);
-
-        if is_supported {
-            let full_path = format!("{}/{}", path, file_name_str);
-            files.push(full_path);
+        if ok {
+            files.push(format!("{}/{}", path, name));
         }
     }
-
     files
 }
