@@ -77,7 +77,8 @@ impl MainWindow {
                         let dir = options_panel.get_dir();
                         if !dir.is_empty() {
                             *images_grid_view.selected_path.borrow_mut() = path;
-                            load_images_into_grid_raw(&dir, &images_grid_view.images_path_list);
+                            let recursive = options_panel.is_recursive();
+                            load_images_into_grid_raw(&dir, &images_grid_view.images_path_list, recursive);
                         }
                     }
                 }));
@@ -112,7 +113,8 @@ impl MainWindow {
                         let dir = options_panel.get_dir();
                         if !dir.is_empty() {
                             *images_grid_view.selected_path.borrow_mut() = path;
-                            load_images_into_grid_raw(&dir, &images_grid_view.images_path_list);
+                            let recursive = options_panel.is_recursive();
+                            load_images_into_grid_raw(&dir, &images_grid_view.images_path_list, recursive);
                         }
                     }
                 });
@@ -143,7 +145,8 @@ impl MainWindow {
                 let dir = options_panel.get_dir();
                 if !dir.is_empty() {
                     *images_grid_view.selected_path.borrow_mut() = initial_path.clone();
-                    load_images_into_grid(&dir, &images_grid_view);
+                    let recursive = options_panel.is_recursive();
+                    load_images_into_grid(&dir, &images_grid_view, recursive);
                 }
             }
         }
@@ -154,9 +157,24 @@ impl MainWindow {
 
         {
             let images_grid_view = images_grid_view.clone();
+            let options_panel_clone = options_panel.clone();
             options_panel.connect_dir_changed(move |new_dir| {
                 images_grid_view.set_selected("");
-                load_images_into_grid_raw(new_dir, &images_grid_view.images_path_list);
+                let recursive = options_panel_clone.is_recursive();
+                load_images_into_grid_raw(new_dir, &images_grid_view.images_path_list, recursive);
+            });
+        }
+
+        {
+            let images_grid_view = images_grid_view.clone();
+            let options_panel_clone = options_panel.clone();
+            options_panel.connect_recursive_changed(move |_recursive| {
+                images_grid_view.set_selected("");
+                let dir = options_panel_clone.get_dir();
+                if !dir.is_empty() {
+                    let recursive = options_panel_clone.is_recursive();
+                    load_images_into_grid_raw(&dir, &images_grid_view.images_path_list, recursive);
+                }
             });
         }
 
@@ -227,45 +245,62 @@ impl MainWindow {
     }
 }
 
-fn load_images_into_grid(dir: &str, grid: &ImagesGridView) {
-    load_images_into_grid_raw(dir, &grid.images_path_list);
+fn load_images_into_grid(dir: &str, grid: &ImagesGridView, recursive: bool) {
+    load_images_into_grid_raw(dir, &grid.images_path_list, recursive);
 }
 
-fn load_images_into_grid_raw(dir: &str, list: &gtk::StringList) {
+fn load_images_into_grid_raw(dir: &str, list: &gtk::StringList, recursive: bool) {
     list.splice(0, list.n_items(), &[] as &[&str]);
-    let entries = read_image_entries(dir);
+    let entries = read_image_entries(dir, recursive);
     for path in entries {
         list.append(path.as_str());
     }
 }
 
-fn read_image_entries(path: &str) -> Vec<String> {
-    let entries = match std::fs::read_dir(path) {
-        Ok(e) => e,
-        Err(_) => return Vec::new(),
-    };
-    let mut files = Vec::new();
-    for entry in entries.flatten() {
-        let metadata = match entry.metadata() {
-            Ok(m) => m,
-            Err(_) => continue,
+fn read_image_entries(path: &str, recursive: bool) -> Vec<String> {
+    fn read_dir_recursive(path: &str, recursive: bool, files: &mut Vec<String>) {
+        let entries = match std::fs::read_dir(path) {
+            Ok(e) => e,
+            Err(_) => return,
         };
-        if !metadata.is_file() {
-            continue;
-        }
-        let file_name = entry.file_name();
-        let name = match file_name.to_str() {
-            Some(n) => n,
-            None => continue,
-        };
+        
         let supported = ["jpg", "jpeg", "png", "bmp", "webp"];
-        let ok = name
-            .rfind('.')
-            .map(|i| supported.contains(&name[i + 1..].to_lowercase().as_str()))
-            .unwrap_or(false);
-        if ok {
-            files.push(format!("{}/{}", path, name));
+        
+        for entry in entries.flatten() {
+            let metadata = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            
+            let entry_path = entry.path();
+            
+            if metadata.is_dir() && recursive {
+                // Recursively scan subdirectories
+                if let Some(path_str) = entry_path.to_str() {
+                    read_dir_recursive(path_str, recursive, files);
+                }
+            } else if metadata.is_file() {
+                let file_name = entry.file_name();
+                let name = match file_name.to_str() {
+                    Some(n) => n,
+                    None => continue,
+                };
+                
+                let ok = name
+                    .rfind('.')
+                    .map(|i| supported.contains(&name[i + 1..].to_lowercase().as_str()))
+                    .unwrap_or(false);
+                    
+                if ok {
+                    if let Some(path_str) = entry_path.to_str() {
+                        files.push(path_str.to_string());
+                    }
+                }
+            }
         }
     }
+    
+    let mut files = Vec::new();
+    read_dir_recursive(path, recursive, &mut files);
     files
 }

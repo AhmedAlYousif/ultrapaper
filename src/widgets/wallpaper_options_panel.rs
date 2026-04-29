@@ -21,6 +21,7 @@ pub struct WallpaperOptionsPanel {
     order_drop: DropDown,
     recursive_check: CheckButton,
     dir_changed_callbacks: Rc<RefCell<Vec<std::boxed::Box<dyn Fn(&str)>>>>,
+    recursive_changed_callbacks: Rc<RefCell<Vec<std::boxed::Box<dyn Fn(bool)>>>>,
 }
 
 // Helper function to get fit mode string list from the FitMode enum
@@ -147,6 +148,20 @@ impl WallpaperOptionsPanel {
 
         let dir_changed_callbacks: Rc<RefCell<Vec<std::boxed::Box<dyn Fn(&str)>>>> =
             Rc::new(RefCell::new(Vec::new()));
+        
+        let recursive_changed_callbacks: Rc<RefCell<Vec<std::boxed::Box<dyn Fn(bool)>>>> =
+            Rc::new(RefCell::new(Vec::new()));
+
+        recursive_check.connect_toggled(clone!(
+            #[strong]
+            recursive_changed_callbacks,
+            move |check| {
+                let is_active = check.is_active();
+                for cb in recursive_changed_callbacks.borrow().iter() {
+                    cb(is_active);
+                }
+            }
+        ));
 
         browse_btn.connect_clicked(clone!(
             #[weak]
@@ -191,8 +206,9 @@ impl WallpaperOptionsPanel {
             dir_only_box,
             timeout_entry,
             order_drop,
-            recursive_check,
+            recursive_check: recursive_check.clone(),
             dir_changed_callbacks,
+            recursive_changed_callbacks,
         }
     }
 
@@ -200,6 +216,16 @@ impl WallpaperOptionsPanel {
         self.dir_changed_callbacks
             .borrow_mut()
             .push(std::boxed::Box::new(f));
+    }
+
+    pub fn connect_recursive_changed<F: Fn(bool) + 'static>(&self, f: F) {
+        self.recursive_changed_callbacks
+            .borrow_mut()
+            .push(std::boxed::Box::new(f));
+    }
+
+    pub fn is_recursive(&self) -> bool {
+        self.recursive_check.is_active()
     }
 
     pub fn load(&self, entry: Option<&WallpaperEntry>) {
